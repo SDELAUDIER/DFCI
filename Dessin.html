@@ -15,7 +15,6 @@
 </head>
 <body>
   <h1>Carte des Accès Pompiers</h1>
-  <p>Ajoutez des points ou des polylignes pour indiquer les accès.</p>
   <div id="map"></div>
   <button id="save">Enregistrer dans Grist</button>
 
@@ -23,7 +22,7 @@
   <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
   <script>
     // 1. Initialiser la carte
-    const map = L.map('map').setView([50.5, 2.3], 10); // Pas-de-Calais
+    const map = L.map('map').setView([50.5, 2.3], 10); // Centré sur le Pas-de-Calais
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
@@ -54,24 +53,39 @@
       drawnItems.addLayer(layer);
     });
 
-    // 5. Bouton "Enregistrer" : Générer le GeoJSON et l'envoyer au backend
+    // 5. Bouton "Enregistrer" : Envoyer les données directement à Grist
     document.getElementById('save').addEventListener('click', async () => {
       const geoJsonData = drawnItems.toGeoJSON();
       console.log("Données GeoJSON:", geoJsonData);
 
-      const response = await fetch('http://localhost:5000/api/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: recordId,
-          geojson: geoJsonData
-        })
-      });
+      // Configuration de l'API Grist
+      const GRIST_API_KEY = "5c7a5728490c0d81551d873c1aaec2388aa29b72"; // Remplacez par votre clé API
+      const GRIST_DOC_ID = "1i1JSABDkpF8"; // Remplacez par l'ID de votre document
+      const url = `https://api.getgrist.com/api/docs/${GRIST_DOC_ID}/tables/DFCI/records`;
 
-      if (response.ok) {
-        alert("Données enregistrées dans Grist avec succès !");
-      } else {
-        alert("Erreur lors de l'enregistrement.");
+      try {
+        const response = await fetch(url, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${GRIST_API_KEY}`
+          },
+          body: JSON.stringify({
+            records: [{
+              id: recordId,
+              geojson: JSON.stringify(geoJsonData) // Convertir GeoJSON en chaîne de caractères
+            }]
+          })
+        });
+
+        if (response.ok) {
+          alert("Données enregistrées dans Grist avec succès !");
+        } else {
+          const error = await response.text();
+          alert("Erreur lors de l'enregistrement: " + error);
+        }
+      } catch (error) {
+        alert("Erreur: " + error);
       }
     });
   </script>
